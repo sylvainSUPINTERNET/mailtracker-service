@@ -10,6 +10,7 @@ import { wsError, wsMsg } from './services/ws.listeners';
 const API_PORT=process.env.API_PORT || 3000;
 const WS_PORT=process.env.WS_PORT || 8888;
 
+
 /**
  * @type {import('fastify').FastifyInstance} Instance of Fastify
  */
