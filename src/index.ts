@@ -5,6 +5,7 @@ import Fastify from 'fastify'
 
 import { pixelController } from './controllers/pixel.controller';
 import { wsError, wsMsg } from './services/ws.listeners';
+import path from 'path';
 
 
 const API_PORT=process.env.API_PORT || 3000;
@@ -18,6 +19,22 @@ const fastify = Fastify({
   logger: true
 })
 
+fastify.register(require('@fastify/static'), {
+  root: path.join(__dirname, 'public'),
+  prefix: '/public/', // optional: default '/'
+  // constraints: { host: 'example.com' } // optional: default {}
+})
+
+fastify.get('/pixel', function (req, reply:any) {
+
+  if ( req.query ) {
+    console.log("pixel id: ", req.query);
+  }
+
+  console.log(req);
+
+  reply.sendFile('1x1.png', { cacheControl: false }) // overriding the options disabling cache-control headers
+});
 
 fastify.register(pixelController);
 
