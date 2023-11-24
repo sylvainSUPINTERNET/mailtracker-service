@@ -1,16 +1,13 @@
 import 'dotenv/config'
-
-import { WebSocketServer } from 'ws';
 import Fastify from 'fastify'
 
 import { pixelController } from './controllers/pixel.controller';
-import { wsError, wsMsg } from './services/ws.listeners';
 import path from 'path';
+
+import cors from '@fastify/cors'
 
 
 const API_PORT=process.env.API_PORT || 3000;
-const WS_PORT=process.env.WS_PORT || 8888;
-
 
 /**
  * @type {import('fastify').FastifyInstance} Instance of Fastify
@@ -18,6 +15,23 @@ const WS_PORT=process.env.WS_PORT || 8888;
 const fastify = Fastify({
   logger: true
 })
+
+
+// TODO : secure it at some point !
+// Access to resource at 'http://localhost:3000/subscribe' from origin 'chrome-extension://jflhboeonhledgchehppbdmjbdddogji' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+fastify.register(cors, {
+  origin: (origin, cb) => {
+    if (!origin || origin.startsWith('chrome-extension://')) {
+      // Autoriser les requêtes sans origine (comme les applications mobiles, postman) ou depuis une extension Chrome
+      cb(null, true);
+    } else {
+      // Bloquer toutes les autres origines
+      cb(new Error('Not allowed by CORS'), false);
+    }
+  },
+  allowedHeaders: ['Content-Type', 'Authorization', 'Access-Control-Allow-Origin', 'Access-Control-Allow-Headers', 'Origin', 'X-Requested-With', 'Accept', 'Accept-Version', 'Content-Length', 'Content-MD5', 'Date', 'X-Api-Version'],
+  methods: ['GET', 'PUT', 'POST', 'DELETE', 'OPTIONS']
+});
 
 fastify.register(require('@fastify/static'), {
   root: path.join(__dirname, 'public'),
@@ -33,19 +47,4 @@ fastify.listen({ port: API_PORT as number }, function (err, address) {
     fastify.log.error(err)
     process.exit(1)
   }
-  
-  const wss = new WebSocketServer({ port: WS_PORT as number });
-  wss.on('connection', ws => {
-    console.log("new WS connection");   
-
-    ws.on('error', wsError);
-  
-    ws.on('message', wsMsg);
-  
-    // ws.send('something');
-  });
-
-  console.log(`Server is now listening on ${address} and WS on ${WS_PORT}`)
-
-
 });
