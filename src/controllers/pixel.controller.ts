@@ -24,11 +24,12 @@ export async function pixelController (fastify:any, options:any) {
 
         // TODO save to redis for ttl 14j ? to keep history
 
-        messageList = [...messageList, {
+        messageList.unshift({
           uuid,
           encodedUriPixelName,
           createdAtTime: new Date().getTime()
-        }];
+        });
+
       }
       return reply.sendFile('1x1.png', { cacheControl: false }) // overriding the options disabling cache-control headers
     } catch ( e ) {
@@ -39,11 +40,11 @@ export async function pixelController (fastify:any, options:any) {
 
   });
 
+  // Consume and return all list, client must check if he find his uuid in the list for notification
   fastify.get('/subscribe', (request:any, reply:any) => {
 
-    // TODO : consume topic and push data here ( user must received only his notification )
+    console.log("Current list size", messageList.length);
 
-    if ( request.query.uuid ) {
       // Set the necessary headers for SSE
       reply.raw.writeHead(200, {
         'Access-Control-Allow-Origin': '*', // Assurez-vous que cet en-tête est présent
@@ -57,15 +58,18 @@ export async function pixelController (fastify:any, options:any) {
       };
 
       const interval = setInterval(() => {
-          sendEvent({ message: 'Hello every second ' + messageList.length });
+        console.log("Send data ", messageList)
+        
+          sendEvent({
+            "trackedList": messageList
+          });
+
+          messageList = [];
       }, 15000);
 
       request.raw.on('close', () => {
           clearInterval(interval);
       });
-    } else {
-      reply.status(400).send({ message: 'Missing uuid' });
-    }
 
     
 
