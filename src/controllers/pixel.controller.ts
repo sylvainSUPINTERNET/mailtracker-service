@@ -1,8 +1,14 @@
-import { request } from "http";
+type ExtensionMessage = {
+  uuid: string;
+  encodedUriPixelName: string;
+  createdAtTime: number;
+};
+
+
+let messageList:ExtensionMessage[] = [];
 
 export async function pixelController (fastify:any, options:any) {
   
-
   // http://localhost:3000/uuid/pixel/kkk // not same 
   // http://localhost:3000/uuid/pixel/kkk?u=uuid // same 
 
@@ -15,6 +21,14 @@ export async function pixelController (fastify:any, options:any) {
         console.log("Same user request received code : ", u);
       } else {
         console.log(`Not same user request, must send notify to uuid (u) : ${uuid} => ${decodeURIComponent(encodedUriPixelName)}`);
+
+        // TODO save to redis for ttl 14j ? to keep history
+
+        messageList = [...messageList, {
+          uuid,
+          encodedUriPixelName,
+          createdAtTime: new Date().getTime()
+        }];
       }
       return reply.sendFile('1x1.png', { cacheControl: false }) // overriding the options disabling cache-control headers
     } catch ( e ) {
@@ -22,28 +36,38 @@ export async function pixelController (fastify:any, options:any) {
       return reply.sendFile('1x1.png', { cacheControl: false }) // overriding the options disabling cache-control headers
     }
 
+
   });
 
   fastify.get('/subscribe', (request:any, reply:any) => {
-    // Set the necessary headers for SSE
-    reply.raw.writeHead(200, {
-      'Access-Control-Allow-Origin': '*', // Assurez-vous que cet en-tête est présent
-      'Content-Type': 'text/event-stream',
-        'Connection': 'keep-alive',
-        'Cache-Control': 'no-cache'
-    });
 
-    const sendEvent = (data:any) => {
-        reply.raw.write(`data: ${JSON.stringify(data)}\n\n`);
-    };
+    // TODO : consume topic and push data here ( user must received only his notification )
 
-    const interval = setInterval(() => {
-        sendEvent({ message: 'Hello every second' });
-    }, 15000);
+    if ( request.query.uuid ) {
+      // Set the necessary headers for SSE
+      reply.raw.writeHead(200, {
+        'Access-Control-Allow-Origin': '*', // Assurez-vous que cet en-tête est présent
+        'Content-Type': 'text/event-stream',
+          'Connection': 'keep-alive',
+          'Cache-Control': 'no-cache'
+      });
 
-    request.raw.on('close', () => {
-        clearInterval(interval);
-    });
+      const sendEvent = (data:any) => {
+          reply.raw.write(`data: ${JSON.stringify(data)}\n\n`);
+      };
+
+      const interval = setInterval(() => {
+          sendEvent({ message: 'Hello every second ' + messageList.length });
+      }, 15000);
+
+      request.raw.on('close', () => {
+          clearInterval(interval);
+      });
+    } else {
+      reply.status(400).send({ message: 'Missing uuid' });
+    }
+
+    
 
 });
 
